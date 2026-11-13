@@ -16,10 +16,15 @@ import secrets
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CyberDeskAPI")
 
-# Suppress repetitive legacy telemetry hits from flooding terminal logs
+# Suppress repetitive legacy telemetry hits and poll requests from flooding terminal logs
 class TelemetryLogFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        return "/api/v1/devices/telemetry" not in record.getMessage()
+        msg = record.getMessage()
+        if "/api/v1/devices/telemetry" in msg:
+            return False
+        if "/api/v1/announcements" in msg:
+            return False
+        return True
 
 logging.getLogger("uvicorn.access").addFilter(TelemetryLogFilter())
 

@@ -3,16 +3,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Megaphone, X, AlertTriangle, ShieldAlert, Info } from 'lucide-react';
 import { Announcement } from '../../types';
 import { getApiBaseUrl } from '../../config/api';
+import { useWebSocket } from '../../context/WebSocketContext';
 
 interface AnnouncementBannerProps {
   onRefresh?: () => void;
 }
 
 export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = () => {
+  const { addListener } = useWebSocket();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissedIds, setDismissedIds] = useState<number[]>([]);
 
   useEffect(() => {
+    // Initial fetch once on load
     const fetchAnnouncements = async () => {
       try {
         const res = await fetch(`${getApiBaseUrl()}/announcements`);
@@ -24,9 +27,17 @@ export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = () => {
     };
 
     fetchAnnouncements();
-    const interval = setInterval(fetchAnnouncements, 20000);
-    return () => clearInterval(interval);
-  }, []);
+
+    // Listen for real-time broadcast announcements over WebSocket (Zero polling!)
+    const unsub = addListener('BROADCAST_ANNOUNCEMENT', (newAnn: Announcement) => {
+      setAnnouncements((prev) => {
+        if (prev.some((a) => a.id === newAnn.id)) return prev;
+        return [newAnn, ...prev];
+      });
+    });
+
+    return () => unsub();
+  }, [addListener]);
 
   const activeItems = announcements.filter((a) => !dismissedIds.includes(a.id));
   if (activeItems.length === 0) return null;
