@@ -25,11 +25,11 @@ jobs:
           cd desktop
           npm install
 
-      - name: Build macOS DMG
+      - name: Build macOS DMG (Intel x64 and Apple Silicon arm64)
         run: |
           cd desktop
           npm run build
-          npx electron-builder --mac dmg -c.mac.identity=null
+          npx electron-builder --mac dmg --x64 --arm64 -c.mac.identity=null
 
       - name: Upload DMG Artifact
         uses: actions/upload-artifact@v4
