@@ -26,3 +26,4 @@ echo  Check the "Actions" tab on your GitHub repository to
 echo  download your "Creative AI IT Helpdesk-1.0.0.dmg".
 echo ========================================================
 pause
+

@@ -29,7 +29,7 @@ jobs:
         run: |
           cd desktop
           npm run build
-          npm run dist:mac
+          npx electron-builder --mac dmg -c.mac.identity=null
 
       - name: Upload DMG Artifact
         uses: actions/upload-artifact@v4
