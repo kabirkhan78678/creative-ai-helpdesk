@@ -6,6 +6,7 @@ import { RaiseTicketModal } from '../tickets/RaiseTicketModal';
 import { ProfileSetupModal } from './ProfileSetupModal';
 import { SelfHealingModal } from './SelfHealingModal';
 import { SpeedTestModal } from './SpeedTestModal';
+import { WorkstationDetailModal } from './WorkstationDetailModal';
 
 interface EmployeePortalProps {
   currentUser: User;
@@ -28,6 +29,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSelfHealingOpen, setIsSelfHealingOpen] = useState(false);
   const [isSpeedTestOpen, setIsSpeedTestOpen] = useState(false);
+  const [isWorkstationModalOpen, setIsWorkstationModalOpen] = useState(false);
   const [prefilledTicket, setPrefilledTicket] = useState<{
     title: string;
     description: string;
@@ -133,17 +135,24 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
         {/* Left Column: My Workstation Auto-Detected Specs */}
         <div className="lg:col-span-1 space-y-4">
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
+            <div
+              onClick={() => setIsWorkstationModalOpen(true)}
+              className="flex items-center justify-between cursor-pointer group hover:bg-slate-50/80 -m-2 p-2 rounded-2xl transition-all"
+              title="Click to open Full Workstation Page"
+            >
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600">
+                <div className="w-10 h-10 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600 group-hover:bg-brand-600 group-hover:text-white transition-all shadow-xs">
                   <Monitor className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm">
-                    My Workstation
+                  <h3 className="font-bold text-slate-900 text-sm group-hover:text-brand-600 transition-colors flex items-center gap-1.5">
+                    <span>My Workstation</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 border border-brand-100">
+                      Full View ↗
+                    </span>
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Live Hardware Profile
+                    Live Hardware Profile & Specs
                   </p>
                 </div>
               </div>
@@ -250,6 +259,15 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Open Full Workstation Page Button */}
+                <button
+                  onClick={() => setIsWorkstationModalOpen(true)}
+                  className="w-full mt-3 py-2.5 px-3 rounded-2xl bg-slate-900 hover:bg-black text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+                >
+                  <Monitor className="w-4 h-4" />
+                  <span>Open Full Workstation Page</span>
+                </button>
               </div>
             ) : (
               <div className="text-center py-6 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-500">
@@ -378,6 +396,17 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
         isOpen={isSelfHealingOpen}
         onClose={() => setIsSelfHealingOpen(false)}
         onFinished={onRefresh}
+      />
+
+      <WorkstationDetailModal
+        isOpen={isWorkstationModalOpen}
+        onClose={() => setIsWorkstationModalOpen(false)}
+        device={myDevice || null}
+        currentUser={currentUser}
+        onOpenSelfHealing={() => setIsSelfHealingOpen(true)}
+        onOpenSpeedTest={() => setIsSpeedTestOpen(true)}
+        onOpenRaiseTicket={() => setIsRaiseModalOpen(true)}
+        onOpenChat={onOpenChatWithAdmin}
       />
 
       {/* Screenshot Viewer Modal */}
