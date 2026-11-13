@@ -16,6 +16,13 @@ import secrets
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CyberDeskAPI")
 
+# Suppress repetitive legacy telemetry hits from flooding terminal logs
+class TelemetryLogFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "/api/v1/devices/telemetry" not in record.getMessage()
+
+logging.getLogger("uvicorn.access").addFilter(TelemetryLogFilter())
+
 class DiscoveryBeaconProtocol(asyncio.DatagramProtocol):
     def connection_made(self, transport):
         self.transport = transport
