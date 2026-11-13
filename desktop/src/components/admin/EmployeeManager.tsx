@@ -103,11 +103,20 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({ devices, onRef
       const res = await fetch(`${getApiBaseUrl()}/auth/users/${userId}`, {
         method: 'DELETE',
       });
+      const data = await res.json();
       if (res.ok) {
+        setStatusMsg({ type: 'success', text: `Account for ${name} was revoked and deleted successfully.` });
         loadUsers();
+        onRefreshDevices();
+        setTimeout(() => setStatusMsg(null), 4000);
+      } else {
+        setStatusMsg({ type: 'error', text: data.detail || 'Could not delete employee account.' });
+        setTimeout(() => setStatusMsg(null), 5000);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setStatusMsg({ type: 'error', text: e.message || 'Network error while deleting employee account.' });
+      setTimeout(() => setStatusMsg(null), 5000);
     }
   };
 
@@ -150,6 +159,32 @@ export const EmployeeManager: React.FC<EmployeeManagerProps> = ({ devices, onRef
           </button>
         </div>
       </div>
+
+      {/* Action Feedback Banner */}
+      {statusMsg && !isModalOpen && (
+        <div
+          className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center justify-between transition-all animate-fade-in ${
+            statusMsg.type === 'success'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              : 'bg-rose-50 text-rose-700 border-rose-200'
+          }`}
+        >
+          <div className="flex items-center space-x-2">
+            {statusMsg.type === 'success' ? (
+              <Check className="w-4 h-4 text-emerald-600" />
+            ) : (
+              <X className="w-4 h-4 text-rose-600" />
+            )}
+            <span>{statusMsg.text}</span>
+          </div>
+          <button
+            onClick={() => setStatusMsg(null)}
+            className="p-1 hover:bg-black/5 rounded-lg cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Employee List Table with Dedicated Scrollbar and Sticky Header */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
