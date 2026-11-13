@@ -1,0 +1,12 @@
+{
+  "name": "cyberdesk-unified-suite",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Unified Cross-Platform Launcher for CyberDesk IT Helpdesk",
+  "scripts": {
+    "start": "node launch.js",
+    "backend": "cd backend && .\\.venv\\Scripts\\python.exe -m uvicorn main:app --port 8000",
+    "desktop": "cd desktop && npm run electron:dev",
+    "build:exe": "npm run dist:portable --prefix desktop"
+  }
+}
