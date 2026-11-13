@@ -179,19 +179,16 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({
     loadTickets();
   }, [currentUser, loadFleet, loadTickets]);
 
-  // Periodic Live Telemetry Reporter (CPU, RAM, Disk every 4 seconds)
+  // Periodic Live Telemetry Stream via pure WebSocket (Zero repeated HTTP hits)
   useEffect(() => {
     if (!currentUser) return;
-    const interval = setInterval(async () => {
+    const interval = setInterval(() => {
       if (typeof window !== 'undefined' && (window as any).electronAPI?.getLiveTelemetry) {
         try {
           const telemetry = (window as any).electronAPI.getLiveTelemetry();
           if (telemetry && telemetry.hostname) {
-            await fetch(`${getApiBaseUrl()}/devices/telemetry`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(telemetry),
-            });
+            // Pure WebSocket event stream - no HTTP polling/hitting!
+            sendEvent('TELEMETRY_STREAM', telemetry);
             setDevices((prev) =>
               prev.map((d) =>
                 d.hostname === telemetry.hostname
@@ -216,7 +213,7 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({
       }
     }, 4000);
     return () => clearInterval(interval);
-  }, [currentUser]);
+  }, [currentUser, sendEvent]);
 
   // WebSocket Live Listeners
   useEffect(() => {
@@ -254,14 +251,11 @@ const AuthenticatedApp: React.FC<AuthenticatedAppProps> = ({
           console.log('[Remote Action Dispatch Received]:', data.action);
           const result = (window as any).electronAPI.executeRemoteAction(data.action, data.target_pid);
           try {
-            await fetch(`${getApiBaseUrl()}/devices/action-result`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                hostname: localSpecs.hostname,
-                action: data.action,
-                result,
-              }),
+            // Relay result back to admin via WebSocket
+            sendEvent('REMOTE_ACTION_RESULT', {
+              hostname: localSpecs.hostname,
+              action: data.action,
+              result,
             });
           } catch (_) {}
         }

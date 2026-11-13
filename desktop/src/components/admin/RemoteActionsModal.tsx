@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, RotateCcw, Trash2, Wifi, Activity, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { Device } from '../../types';
-import { getApiBaseUrl } from '../../config/api';
+import { useWebSocket } from '../../context/WebSocketContext';
 
 interface RemoteActionsModalProps {
   isOpen: boolean;
@@ -17,6 +17,7 @@ export const RemoteActionsModal: React.FC<RemoteActionsModalProps> = ({
   device,
   onOpenTaskManager,
 }) => {
+  const { sendEvent } = useWebSocket();
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -42,25 +43,18 @@ export const RemoteActionsModal: React.FC<RemoteActionsModalProps> = ({
         }
       }
 
-      // 2. Dispatch across network to employee's PC via Backend WebSocket Hub
-      const res = await fetch(`${getApiBaseUrl()}/devices/action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action,
-          target_hostname: device.hostname,
-          target_device_id: device.id,
-        }),
+      // 2. Dispatch across network to employee's PC via pure WebSocket
+      sendEvent('REMOTE_ACTION_REQUEST', {
+        action,
+        target_hostname: device.hostname,
+        target_device_id: device.id,
+        target_user_id: device.assigned_user_id,
       });
 
-      if (res.ok) {
-        setFeedback({
-          type: 'success',
-          message: `Remote command [${action}] dispatched to ${device.hostname}.`,
-        });
-      } else {
-        setFeedback({ type: 'error', message: 'Failed to dispatch command to device.' });
-      }
+      setFeedback({
+        type: 'success',
+        message: `Remote command [${action}] dispatched to ${device.hostname}.`,
+      });
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message || 'Network error occurred.' });
     } finally {

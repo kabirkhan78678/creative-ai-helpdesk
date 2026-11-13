@@ -14,11 +14,8 @@ interface PromptModalProps {
 export const PromptModal: React.FC<PromptModalProps> = ({ prompt, onClose, onGrantAccess }) => {
   const { sendEvent } = useWebSocket();
 
-  const handleDecision = async (approved: boolean) => {
+  const handleDecision = (approved: boolean) => {
     try {
-      await fetch(`${getApiBaseUrl()}/remote/${prompt.session_id}/respond?approved=${approved}`, {
-        method: 'POST'
-      });
       sendEvent('REMOTE_SESSION_RESPONSE', {
         session_id: prompt.session_id,
         target_admin_id: prompt.admin_id,

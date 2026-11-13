@@ -45,7 +45,7 @@ export const RemoteDesktopModal: React.FC<RemoteDesktopModalProps> = ({
   const frameCountRef = useRef(0);
   const imageContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // 1. Initiate Remote Session Request
+  // 1. Initiate Remote Session Request via Pure WebSocket
   useEffect(() => {
     if (!isOpen || !targetDevice) return;
 
@@ -53,33 +53,25 @@ export const RemoteDesktopModal: React.FC<RemoteDesktopModalProps> = ({
     setLiveFrame(null);
     frameCountRef.current = 0;
 
-    const requestSession = async () => {
-      try {
-        const res = await fetch(`${getApiBaseUrl()}/remote/request`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            admin_id: currentUser.id,
-            employee_id: targetDevice.assigned_user_id || 0,
-            device_id: targetDevice.id,
-          }),
-        });
+    // Send pure WebSocket initiate event (Zero HTTP request overhead)
+    sendEvent('REMOTE_SESSION_INITIATE', {
+      admin_id: currentUser.id,
+      employee_id: targetDevice.assigned_user_id || 0,
+      device_id: targetDevice.id,
+      target_hostname: targetDevice.hostname,
+    });
+  }, [isOpen, targetDevice, currentUser.id, sendEvent]);
 
-        if (res.ok) {
-          const data = await res.json();
-          setSessionCode(data.session_code);
-        }
-      } catch (err) {
-        console.error('Remote request error:', err);
-      }
-    };
-
-    requestSession();
-  }, [isOpen, targetDevice, currentUser.id]);
-
-  // 2. Listen for Real-Time Screen Frames & Responses from Employee PC
+  // 2. Listen for Real-Time Screen Frames, Code & Responses from Employee PC
   useEffect(() => {
     if (!isOpen) return;
+
+    // Listen for created session code
+    const unsubCreated = addListener('REMOTE_SESSION_CREATED', (data: any) => {
+      if (data?.session_code) {
+        setSessionCode(data.session_code);
+      }
+    });
 
     // Listen for incoming desktop video frames
     const unsubFrames = addListener('REMOTE_SCREEN_FRAME', (data: any) => {
@@ -110,6 +102,7 @@ export const RemoteDesktopModal: React.FC<RemoteDesktopModalProps> = ({
     });
 
     return () => {
+      unsubCreated();
       unsubFrames();
       unsubResponse();
       unsubStop();
@@ -162,28 +155,17 @@ export const RemoteDesktopModal: React.FC<RemoteDesktopModalProps> = ({
     });
   };
 
-  // 5. In-Session Remote Actions Shortcut
-  const handleQuickAction = async (action: 'LOCK' | 'RESTART' | 'CLEAN_TEMP' | 'FLUSH_DNS') => {
+  // 5. In-Session Remote Actions Shortcut (Pure WebSocket Dispatch)
+  const handleQuickAction = (action: 'LOCK' | 'RESTART' | 'CLEAN_TEMP' | 'FLUSH_DNS') => {
     if (!targetDevice) return;
     setActionFeedback(`Sending ${action}...`);
-    try {
-      const res = await fetch(`${getApiBaseUrl()}/devices/action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action,
-          target_hostname: targetDevice.hostname,
-          target_device_id: targetDevice.id,
-        }),
-      });
-      if (res.ok) {
-        setActionFeedback(`✓ Command ${action} Dispatched`);
-      } else {
-        setActionFeedback(`Failed to send ${action}`);
-      }
-    } catch (_) {
-      setActionFeedback('Failed to dispatch');
-    }
+    sendEvent('REMOTE_ACTION_REQUEST', {
+      action,
+      target_hostname: targetDevice.hostname,
+      target_device_id: targetDevice.id,
+      target_user_id: targetDevice.assigned_user_id,
+    });
+    setTimeout(() => setActionFeedback(`✓ Command ${action} Dispatched`), 200);
     setTimeout(() => setActionFeedback(null), 3500);
   };
 

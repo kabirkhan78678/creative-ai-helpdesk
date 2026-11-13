@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Activity, RefreshCw, XCircle, Search, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Device, ProcessItem } from '../../types';
-import { getApiBaseUrl } from '../../config/api';
+import { useWebSocket } from '../../context/WebSocketContext';
 
 interface TaskManagerModalProps {
   isOpen: boolean;
@@ -15,6 +15,7 @@ export const TaskManagerModal: React.FC<TaskManagerModalProps> = ({
   onClose,
   device,
 }) => {
+  const { sendEvent } = useWebSocket();
   const [processes, setProcesses] = useState<ProcessItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,15 +81,12 @@ export const TaskManagerModal: React.FC<TaskManagerModalProps> = ({
         }
       }
 
-      // Remote kill via API
-      await fetch(`${getApiBaseUrl()}/devices/action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'KILL_PROCESS',
-          target_hostname: device.hostname,
-          target_pid: proc.pid,
-        }),
+      // Remote kill via pure WebSocket
+      sendEvent('REMOTE_ACTION_REQUEST', {
+        action: 'KILL_PROCESS',
+        target_hostname: device.hostname,
+        target_pid: proc.pid,
+        target_user_id: device.assigned_user_id,
       });
 
       setStatusMessage({ type: 'success', text: `Kill command sent for ${proc.name} (PID: ${proc.pid})` });
