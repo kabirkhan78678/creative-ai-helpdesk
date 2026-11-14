@@ -1,11 +1,14 @@
 from datetime import datetime
 from typing import List
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.entities import Device, User
 from app.schemas.schemas import DeviceResponse, DeviceCreate, TelemetryReport, DeviceAutoEnroll, RemoteActionRequest
 from app.core.websocket_hub import hub
+
+logger = logging.getLogger("Devices")
 
 router = APIRouter(prefix="/devices", tags=["Devices & Telemetry"])
 
@@ -115,6 +118,7 @@ async def auto_enroll_device(info: DeviceAutoEnroll, request: Request, db: Sessi
     db.commit()
     db.refresh(device)
 
+    logger.info(f"Workstation enrolled: '{device.hostname}' ({device.ip_address}) bound to User ID: {device.assigned_user_id}")
     res = DeviceResponse.model_validate(device)
     await hub.broadcast_to_admins("DEVICE_ENROLLED", res.model_dump(mode="json"))
     return res

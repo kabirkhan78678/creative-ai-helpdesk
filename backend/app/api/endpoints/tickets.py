@@ -1,12 +1,15 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.entities import Ticket, User, Device
 from app.schemas.schemas import TicketResponse, TicketCreate, TicketUpdate
 from app.core.websocket_hub import hub
+
+logger = logging.getLogger("Tickets")
 
 router = APIRouter(prefix="/tickets", tags=["Helpdesk & Tickets"])
 
@@ -59,6 +62,7 @@ async def create_ticket(ticket_in: TicketCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(ticket)
 
+    logger.info(f"New ticket #{ticket.ticket_number} created: '{ticket.title}' by User ID: {ticket.creator_id}")
     res = TicketResponse.model_validate(ticket)
     # Broadcast ticket creation live to all IT admins
     await hub.broadcast_to_admins("TICKET_CREATED", res.model_dump(mode="json"))
@@ -87,6 +91,7 @@ async def update_ticket(ticket_id: int, ticket_up: TicketUpdate, db: Session = D
     db.commit()
     db.refresh(ticket)
 
+    logger.info(f"Ticket #{ticket.ticket_number} updated: status={ticket.status}, priority={ticket.priority}")
     res = TicketResponse.model_validate(ticket)
     # Broadcast to admins and to ticket creator
     data = res.model_dump(mode="json")

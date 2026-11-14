@@ -1,11 +1,14 @@
 from datetime import datetime
 from typing import List
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.entities import Announcement, User
 from app.schemas.schemas import AnnouncementCreate, AnnouncementResponse
 from app.core.websocket_hub import hub
+
+logger = logging.getLogger("Announcements")
 
 router = APIRouter(prefix="/announcements", tags=["Company Announcements"])
 
@@ -30,6 +33,7 @@ async def create_announcement(item: AnnouncementCreate, db: Session = Depends(ge
     db.commit()
     db.refresh(announcement)
 
+    logger.info(f"Company announcement broadcasted: '{announcement.title}'")
     res = AnnouncementResponse.model_validate(announcement)
     # Broadcast to all connected clients over WebSocket
     import json

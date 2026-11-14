@@ -16,17 +16,21 @@ import secrets
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CyberDeskAPI")
 
-# Suppress repetitive legacy telemetry hits and poll requests from flooding terminal logs
-class TelemetryLogFilter(logging.Filter):
+# Suppress noisy ASGI / Websocket handshake and repetitive poll hits from flooding terminal logs
+class NoisyLogFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
-        if "/api/v1/devices/telemetry" in msg:
+        if "connection open" in msg or "connection closed" in msg:
             return False
-        if "/api/v1/announcements" in msg:
+        if "/api/v1/devices/telemetry" in msg or "/api/v1/announcements" in msg:
+            return False
+        if '"WebSocket /ws' in msg:
             return False
         return True
 
-logging.getLogger("uvicorn.access").addFilter(TelemetryLogFilter())
+logging.getLogger("uvicorn.access").addFilter(NoisyLogFilter())
+logging.getLogger("uvicorn.error").addFilter(NoisyLogFilter())
+logging.getLogger("websockets").setLevel(logging.WARNING)
 
 class DiscoveryBeaconProtocol(asyncio.DatagramProtocol):
     def connection_made(self, transport):
@@ -204,12 +208,14 @@ async def websocket_endpoint(
                 # 3. Remote Action Request (Admin -> Workstation via WebSocket)
                 elif event == "REMOTE_ACTION_REQUEST":
                     target_user_id = data.get("target_user_id")
+                    logger.info(f"Remote action requested: {data.get('action')} on target PC: {data.get('target_hostname')}")
                     if target_user_id:
                         await hub.send_to_user(target_user_id, "REMOTE_ACTION_DISPATCH", data)
                     await hub.broadcast_all("REMOTE_ACTION_DISPATCH", data)
 
                 # 4. Remote Action Result (Workstation -> Admin via WebSocket)
                 elif event == "REMOTE_ACTION_RESULT":
+                    logger.info(f"Remote action completed on target PC: {data.get('action')} (Status: {data.get('status', 'OK')})")
                     await hub.broadcast_to_admins("REMOTE_ACTION_RESULT_NOTIFY", data)
 
                 # 5. Remote Session Initiate (Admin -> Workstation via WebSocket)
@@ -247,6 +253,7 @@ async def websocket_endpoint(
                             "target_hostname": hostname,
                             "ticket_id": data.get("ticket_id")
                         }
+                        logger.info(f"Remote session requested: Code={code} Target={hostname} by Admin ID={admin_id}")
                         # Notify initiating admin with session info & code
                         await hub.send_to_user(admin_id, "REMOTE_SESSION_CREATED", prompt_payload)
                         # Notify target employee
@@ -279,6 +286,7 @@ async def websocket_endpoint(
                             logger.error(f"Remote response error: {e}")
                         finally:
                             db.close()
+                    logger.info(f"Remote session #{session_id} response: {'APPROVED' if approved else 'DENIED'}")
                     if admin_target:
                         await hub.send_to_user(admin_target, "REMOTE_SESSION_RESPONSE", data)
                     await hub.broadcast_to_admins("REMOTE_SESSION_RESPONSE", data)
@@ -311,6 +319,7 @@ async def websocket_endpoint(
                 # 11. Remote Desktop Stop event
                 elif event == "REMOTE_DESK_STOP":
                     session_id = data.get("session_id")
+                    logger.info(f"Remote session #{session_id} STOPPED")
                     if session_id:
                         db = SessionLocal()
                         try:

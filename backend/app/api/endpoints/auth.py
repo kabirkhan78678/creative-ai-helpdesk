@@ -34,6 +34,7 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated. Contact Admin.")
 
     token = f"bearer_{user.id}_{user.role.lower()}_session"
+    logger.info(f"User login successful: {user.full_name} ({user.email}) [Role: {user.role}]")
     return TokenResponse(
         access_token=token,
         token_type="bearer",
@@ -63,6 +64,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    logger.info(f"New user registered: {new_user.full_name} (Code: {new_user.employee_code}, Role: {new_user.role})")
     return UserResponse.model_validate(new_user)
 
 @router.get("/users", response_model=list[UserResponse])
